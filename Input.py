@@ -7,7 +7,7 @@ clf = joblib.load("model_is_delayed.pkl")
 reg_delay = joblib.load("model_delay.pkl")
 reg_eta = joblib.load("model_eta.pkl")
 
-# === Daftar fitur yang digunakan saat training ===
+# === Daftar fitur ===
 expected_features = [
     'Order Month', 'Pizza Size', 'Pizza Type', 'Toppings Count', 'Distance (km)',
     'Traffic Level', 'Is Weekend', 'Topping Density',
@@ -53,16 +53,9 @@ if st.button("🔍 Prediksi"):
     }
 
     input_df = pd.DataFrame([input_dict])
-
-    # Validasi urutan dan nama kolom
     input_df = input_df[expected_features]
-    input_df = input_df.astype(float)  # konversi semua nilai ke float agar cocok untuk XGBoost
+    input_df = input_df.astype(float)  # Konversi ke float agar cocok untuk XGBoost
 
-# === Prediksi ===
-pred_eta = reg_eta.predict(input_df)[0]
-
-
-    # === Prediksi ===
     pred_eta = reg_eta.predict(input_df)[0]
     pred_delay = reg_delay.predict(input_df)[0]
     is_delayed = clf.predict(input_df)[0]
