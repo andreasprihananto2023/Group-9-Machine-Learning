@@ -48,6 +48,10 @@ if submitted:
         'Order Hour': order_hour
     }])
 
+    # URUTKAN agar sama dengan fitur model
+    expected_features = reg_eta.feature_names_in_
+    input_df = input_df[expected_features]
+
     pred_eta = reg_eta.predict(input_df)[0]
     pred_delay = reg_delay.predict(input_df)[0]
     is_delayed = clf.predict(input_df)[0]
@@ -56,3 +60,4 @@ if submitted:
     st.write(f"🕒 **Estimasi Pengiriman:** {pred_eta:.2f} menit")
     st.write(f"⏱️ **Prediksi Keterlambatan:** {pred_delay:.2f} menit")
     st.write(f"⚠️ **Kemungkinan Telat:** {'YA' if is_delayed else 'TIDAK'}")
+
