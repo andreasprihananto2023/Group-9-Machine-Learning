@@ -8,11 +8,10 @@ from sklearn.metrics import accuracy_score, mean_squared_error, r2_score
 import xgboost as xgb
 import joblib
 
-
-
+# Load data
 df = pd.read_excel("Enhanced_pizza_data.xlsx")
 
-
+# Map bulan
 month_map = {
     'January': 1, 'February': 2, 'March': 3, 'April': 4,
     'May': 5, 'June': 6, 'July': 7, 'August': 8,
@@ -21,9 +20,10 @@ month_map = {
 if 'Order Month' in df.columns:
     df['Order Month'] = df['Order Month'].map(month_map)
 
-
+# Bersihkan data
 df.dropna(inplace=True)
 
+# Label Encoding
 categorical_cols = df.select_dtypes(include='object').columns
 label_encoders = {}
 for col in categorical_cols:
@@ -31,63 +31,45 @@ for col in categorical_cols:
     df[col] = le.fit_transform(df[col])
     label_encoders[col] = le
 
+# Fitur per model
+features_eta = ['Order Month', 'Pizza Size', 'Pizza Type', 'Toppings Count', 'Distance (km)', 'Traffic Level', 'Order Hour']
+features_delay = ['Pizza Complexity', 'Restaurant Avg Time', 'Toppings Count', 'Topping Density', 'Traffic Level', 'Is Weekend', 'Order Hour']
+features_class = ['Distance (km)', 'Traffic Level', 'Is Weekend', 'Order Hour', 'Pizza Complexity']
 
-features = [
-    'Order Month', 'Pizza Size', 'Pizza Type', 'Toppings Count', 'Distance (km)',
-    'Traffic Level', 'Is Weekend', 'Topping Density',
-    'Estimated Duration (min)', 'Pizza Complexity',
-    'Traffic Impact', 'Order Hour', 'Restaurant Avg Time'
-]
-
-
-
-X = df[features]
-y_class = df['Is Delayed'] 
-
-X_train, X_test, y_train, y_test = train_test_split(X, y_class, test_size=0.2, random_state=42)
-
-clf = RandomForestClassifier()
-clf.fit(X_train, y_train)
-y_pred_class = clf.predict(X_test)
-
-print("\n=== MODEL 1: Prediksi Is_Delayed ===")
-print("Akurasi:", accuracy_score(y_test, y_pred_class))
-
-
-y_delay = df['Delay (min)']
-
-X_train_delay, X_test_delay, y_train_delay, y_test_delay = train_test_split(X, y_delay, test_size=0.2, random_state=42)
-
-reg_delay = RandomForestRegressor()
-reg_delay.fit(X_train_delay, y_train_delay)
-y_pred_delay = reg_delay.predict(X_test_delay)
-
-print("\n=== MODEL 2: Prediksi Delay (min) ===")
-print("RMSE:", np.sqrt(mean_squared_error(y_test_delay, y_pred_delay)))
-print("R² Score:", r2_score(y_test_delay, y_pred_delay))
-
+# ================== MODEL 1: ETA ==================
+X_eta = df[features_eta]
 y_eta = df['Delivery Duration (min)']
-
-X_train_eta, X_test_eta, y_train_eta, y_test_eta = train_test_split(X, y_eta, test_size=0.2, random_state=42)
-
+X_train_eta, X_test_eta, y_train_eta, y_test_eta = train_test_split(X_eta, y_eta, test_size=0.2, random_state=42)
 reg_eta = xgb.XGBRegressor(objective="reg:squarederror")
 reg_eta.fit(X_train_eta, y_train_eta)
-y_pred_eta = reg_eta.predict(X_test_eta)
-
-print("\n=== MODEL 3: Prediksi Delivery Duration (ETA) ===")
-print("RMSE:", np.sqrt(mean_squared_error(y_test_eta, y_pred_eta)))
-print("R² Score:", r2_score(y_test_eta, y_pred_eta))
-
-joblib.dump(clf, "model_is_delayed.pkl")
-joblib.dump(reg_delay, "model_delay.pkl")
+print("Model ETA trained. R²:", r2_score(y_test_eta, reg_eta.predict(X_test_eta)))
 joblib.dump(reg_eta, "model_eta.pkl")
 
+# ================== MODEL 2: DELAY ==================
+X_delay = df[features_delay]
+y_delay = df['Delay (min)']
+X_train_delay, X_test_delay, y_train_delay, y_test_delay = train_test_split(X_delay, y_delay, test_size=0.2, random_state=42)
+reg_delay = RandomForestRegressor()
+reg_delay.fit(X_train_delay, y_train_delay)
+print("Model Delay trained. R²:", r2_score(y_test_delay, reg_delay.predict(X_test_delay)))
+joblib.dump(reg_delay, "model_delay.pkl")
+
+# ================== MODEL 3: IS_DELAYED ==================
+X_class = df[features_class]
+y_class = df['Is Delayed']
+X_train_class, X_test_class, y_train_class, y_test_class = train_test_split(X_class, y_class, test_size=0.2, random_state=42)
+clf = RandomForestClassifier()
+clf.fit(X_train_class, y_train_class)
+print("Model Classification trained. Accuracy:", accuracy_score(y_test_class, clf.predict(X_test_class)))
+joblib.dump(clf, "model_is_delayed.pkl")
+
+# Optional: Visualisasi ETA
 plt.figure(figsize=(8, 5))
-plt.scatter(y_test_eta, y_pred_eta, alpha=0.6, color='green')
+plt.scatter(y_test_eta, reg_eta.predict(X_test_eta), alpha=0.6, color='green')
 plt.xlabel("Actual Delivery Time (min)")
 plt.ylabel("Predicted ETA (min)")
-plt.title("Prediksi vs Realita Waktu Pengiriman")
-plt.plot([y_test_eta.min(), y_test_eta.max()], [y_test_eta.min(), y_test_eta.max()], 'r--')  # garis 45 derajat
+plt.title("ETA: Prediksi vs Aktual")
+plt.plot([y_test_eta.min(), y_test_eta.max()], [y_test_eta.min(), y_test_eta.max()], 'r--')
 plt.grid(True)
 plt.tight_layout()
 plt.show()
