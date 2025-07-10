@@ -56,6 +56,11 @@ if st.button("🔍 Prediksi"):
 
     # Validasi urutan dan nama kolom
     input_df = input_df[expected_features]
+    input_df = input_df.astype(float)  # konversi semua nilai ke float agar cocok untuk XGBoost
+
+# === Prediksi ===
+pred_eta = reg_eta.predict(input_df)[0]
+
 
     # === Prediksi ===
     pred_eta = reg_eta.predict(input_df)[0]
