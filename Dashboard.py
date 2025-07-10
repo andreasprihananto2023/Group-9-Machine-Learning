@@ -29,9 +29,12 @@ features = [
     'Pizza Complexity', 'Traffic Impact', 'Restaurant Avg Time'
 ]
 
-X = df[features]
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+X = df[features].copy()
+
+# Pastikan semua kolom numerik
+X = X.apply(pd.to_numeric, errors='coerce')
+X.dropna(inplace=True)  # Drop baris yang jadi NaN akibat coercion
+
 
 # === Clustering ===
 n_clusters = st.slider("Jumlah Cluster", 2, 8, 3)
