@@ -33,10 +33,9 @@ for col in categorical_cols:
 
 # === Pilih fitur baru (TANPA estimasi waktu & dampak lalu lintas)
 features = [
-    'Order Month', 'Pizza Size', 'Pizza Type', 'Toppings Count',
-    'Distance (km)', 'Traffic Level', 'Is Weekend',
-    'Topping Density', 'Pizza Complexity', 'Order Hour',
-    'Restaurant Avg Time'
+    'Order Month', 'Pizza Size', 'Pizza Type', 'Toppings Count', 'Distance (km)',
+    'Traffic Level', 'Is Weekend', 'Topping Density',
+    'Pizza Complexity', 'Order Hour', 'Restaurant Avg Time'
 ]
 
 X = df[features]
@@ -70,7 +69,8 @@ X_train_eta, X_test_eta, y_train_eta, y_test_eta = train_test_split(X, y_eta, te
 
 reg_eta = xgb.XGBRegressor(objective="reg:squarederror")
 reg_eta.fit(X_train_eta, y_train_eta)
-y_pred_eta = reg_eta.predict(X_test_eta)
+joblib.dump(reg_eta, "model_eta.pkl")
+
 
 print("\n=== MODEL 3: Prediksi Delivery Duration (ETA) ===")
 print("RMSE:", np.sqrt(mean_squared_error(y_test_eta, y_pred_eta)))
