@@ -1,55 +1,93 @@
-import streamlit as st
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.metrics import accuracy_score, mean_squared_error, r2_score
+import xgboost as xgb
 import joblib
 
-# Load model
-clf = joblib.load("model_is_delayed.pkl")
-reg_delay = joblib.load("model_delay.pkl")
-reg_eta = joblib.load("model_eta.pkl")
 
-st.title("Prediksi Pengiriman Pizza 🍕")
 
-# Form input sebagai dropdown
-with st.form("input_form"):
-    month = st.selectbox("Bulan Pemesanan", list(range(1, 13)))
-    pizza_size = st.selectbox("Ukuran Pizza", [0, 1, 2], format_func=lambda x: ["Small", "Medium", "Large"][x])
-    pizza_type = st.selectbox("Tipe Pizza", [0, 1, 2], format_func=lambda x: ["Veg", "Meat", "Cheese"][x])
-    toppings = st.selectbox("Jumlah Topping", list(range(1, 7)))
-    distance = st.slider("Jarak (km)", 0.5, 20.0, 5.0, step=0.1)  # Tetap slider
-    traffic = st.selectbox("Tingkat Kemacetan", [0, 1, 2, 3], format_func=lambda x: ["Rendah", "Sedang", "Padat", "Macet"][x])
-    weekend = st.selectbox("Apakah Akhir Pekan?", [0, 1], format_func=lambda x: "Ya" if x == 1 else "Tidak")
-    density = st.selectbox("Kepadatan Topping", [round(i * 0.1, 1) for i in range(0, 11)])  # 0.0 - 1.0
-    est_dur = st.selectbox("Estimasi Waktu Sistem (menit)", list(range(5, 61, 5)))
-    complexity = st.selectbox("Kompleksitas Pizza", [0, 1, 2], format_func=lambda x: ["Mudah", "Sedang", "Rumit"][x])
-    traffic_impact = st.selectbox("Dampak Lalu Lintas", [0, 1, 2, 3])
-    order_hour = st.selectbox("Jam Pemesanan", list(range(0, 24)))
-    avg_rest_time = st.selectbox("Waktu Rata-Rata Restoran (menit)", list(range(5, 61, 5)))
+df = pd.read_excel("Enhanced_pizza_data.xlsx")
 
-    submitted = st.form_submit_button("Prediksi")
 
-# Prediksi saat tombol ditekan
-if submitted:
-    input_df = pd.DataFrame([{
-        'Order Month': month,
-        'Pizza Size': pizza_size,
-        'Pizza Type': pizza_type,
-        'Toppings Count': toppings,
-        'Distance (km)': distance,
-        'Traffic Level': traffic,
-        'Is Weekend': weekend,
-        'Topping Density': density,
-        'Estimated Duration (min)': est_dur,
-        'Pizza Complexity': complexity,
-        'Traffic Impact': traffic_impact,
-        'Order Hour': order_hour,
-        'Restaurant Avg Time': avg_rest_time
-    }])
+month_map = {
+    'January': 1, 'February': 2, 'March': 3, 'April': 4,
+    'May': 5, 'June': 6, 'July': 7, 'August': 8,
+    'September': 9, 'October': 10, 'November': 11, 'December': 12
+}
+if 'Order Month' in df.columns:
+    df['Order Month'] = df['Order Month'].map(month_map)
 
-    pred_eta = reg_eta.predict(input_df)[0]
-    pred_delay = reg_delay.predict(input_df)[0]
-    is_delayed = clf.predict(input_df)[0]
 
-    st.subheader("Hasil Prediksi 📊")
-    st.write(f"🕒 **Estimasi Pengiriman:** {pred_eta:.2f} menit")
-    st.write(f"⏱️ **Prediksi Keterlambatan:** {pred_delay:.2f} menit")
-    st.write(f"⚠️ **Kemungkinan Telat:** {'YA' if is_delayed else 'TIDAK'}")
+df.dropna(inplace=True)
+
+categorical_cols = df.select_dtypes(include='object').columns
+label_encoders = {}
+for col in categorical_cols:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le
+
+
+features = [
+    'Order Month', 'Pizza Size', 'Pizza Type', 'Toppings Count', 'Distance (km)',
+    'Traffic Level', 'Is Weekend', 'Topping Density',
+    'Estimated Duration (min)', 'Pizza Complexity',
+    'Traffic Impact', 'Order Hour', 'Restaurant Avg Time'
+]
+
+
+X = df[features]
+y_class = df['Is Delayed'] 
+
+X_train, X_test, y_train, y_test = train_test_split(X, y_class, test_size=0.2, random_state=42)
+
+clf = RandomForestClassifier()
+clf.fit(X_train, y_train)
+y_pred_class = clf.predict(X_test)
+
+print("\n=== MODEL 1: Prediksi Is_Delayed ===")
+print("Akurasi:", accuracy_score(y_test, y_pred_class))
+
+
+y_delay = df['Delay (min)']
+
+X_train_delay, X_test_delay, y_train_delay, y_test_delay = train_test_split(X, y_delay, test_size=0.2, random_state=42)
+
+reg_delay = RandomForestRegressor()
+reg_delay.fit(X_train_delay, y_train_delay)
+y_pred_delay = reg_delay.predict(X_test_delay)
+
+print("\n=== MODEL 2: Prediksi Delay (min) ===")
+print("RMSE:", np.sqrt(mean_squared_error(y_test_delay, y_pred_delay)))
+print("R² Score:", r2_score(y_test_delay, y_pred_delay))
+
+y_eta = df['Delivery Duration (min)']
+
+X_train_eta, X_test_eta, y_train_eta, y_test_eta = train_test_split(X, y_eta, test_size=0.2, random_state=42)
+
+reg_eta = xgb.XGBRegressor(objective="reg:squarederror")
+reg_eta.fit(X_train_eta, y_train_eta)
+y_pred_eta = reg_eta.predict(X_test_eta)
+
+print("\n=== MODEL 3: Prediksi Delivery Duration (ETA) ===")
+print("RMSE:", np.sqrt(mean_squared_error(y_test_eta, y_pred_eta)))
+print("R² Score:", r2_score(y_test_eta, y_pred_eta))
+
+joblib.dump(clf, "model_is_delayed.pkl")
+joblib.dump(reg_delay, "model_delay.pkl")
+joblib.dump(reg_eta, "model_eta.pkl")
+
+plt.figure(figsize=(8, 5))
+plt.scatter(y_test_eta, y_pred_eta, alpha=0.6, color='green')
+plt.xlabel("Actual Delivery Time (min)")
+plt.ylabel("Predicted ETA (min)")
+plt.title("Prediksi vs Realita Waktu Pengiriman")
+plt.plot([y_test_eta.min(), y_test_eta.max()], [y_test_eta.min(), y_test_eta.max()], 'r--')  # garis 45 derajat
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
