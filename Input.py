@@ -2,42 +2,46 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# Load model
+# === Load model dan fitur ===
 clf = joblib.load("model_is_delayed.pkl")
 reg_delay = joblib.load("model_delay.pkl")
 reg_eta = joblib.load("model_eta.pkl")
 
-st.title("Prediksi Pengiriman Pizza 🍕")
-
-# Pilihan tipe pizza yang lebih lengkap (contoh umum)
-pizza_types = [
-    "Margherita", "Pepperoni", "Cheese", "Veggie", "Meat Lovers",
-    "BBQ Chicken", "Hawaiian", "Mushroom", "Supreme", "Tuna"
+# === Daftar fitur yang digunakan saat training ===
+expected_features = [
+    'Order Month', 'Pizza Size', 'Pizza Type', 'Toppings Count', 'Distance (km)',
+    'Traffic Level', 'Is Weekend', 'Topping Density',
+    'Estimated Duration (min)', 'Pizza Complexity', 'Order Hour'
 ]
-# Encoding sederhana (harus konsisten dengan model saat training)
-pizza_type_mapping = {name: i for i, name in enumerate(pizza_types)}
 
-# Form input
-with st.form("input_form"):
-    month = st.selectbox("Bulan Pemesanan", list(range(1, 13)))
-    pizza_size = st.selectbox("Ukuran Pizza", [0, 1, 2], format_func=lambda x: ["Small", "Medium", "Large"][x])
-    pizza_type = st.selectbox("Tipe Pizza", pizza_types)
-    toppings = st.selectbox("Jumlah Topping", list(range(1, 7)))
-    distance = st.slider("Jarak (km)", 0.5, 20.0, 5.0, step=0.1)
-    traffic = st.selectbox("Tingkat Kemacetan", [0, 1, 2, 3], format_func=lambda x: ["Rendah", "Sedang", "Padat", "Macet"][x])
-    weekend = st.selectbox("Apakah Akhir Pekan?", [0, 1], format_func=lambda x: "Ya" if x == 1 else "Tidak")
-    density = st.selectbox("Kepadatan Topping", [round(i * 0.1, 1) for i in range(0, 11)])
-    est_dur = st.selectbox("Estimasi Waktu Sistem (menit)", list(range(5, 61, 5)))
-    complexity = st.selectbox("Kompleksitas Pizza", [0, 1, 2], format_func=lambda x: ["Mudah", "Sedang", "Rumit"][x])
-    order_hour = st.selectbox("Jam Pemesanan", list(range(0, 24)))
+# === Judul Aplikasi ===
+st.title("📦 Prediksi Pengiriman Pizza")
 
-    submitted = st.form_submit_button("Prediksi")
+# === Form Input ===
+month = st.selectbox("Bulan Pemesanan", list(range(1, 13)), index=6)
+pizza_size = st.selectbox("Ukuran Pizza", {"Small": 0, "Medium": 1, "Large": 2})
+pizza_type = st.selectbox("Tipe Pizza", {
+    "Vegetarian": 0,
+    "Meat Lovers": 1,
+    "Cheese Only": 2,
+    "Supreme": 3,
+    "Seafood": 4
+})
+toppings = st.slider("Jumlah Topping", 1, 6, 3)
+distance = st.number_input("Jarak (km)", min_value=0.5, max_value=50.0, value=5.0, step=0.1)
+traffic = st.selectbox("Tingkat Kemacetan", {"Rendah": 0, "Sedang": 1, "Padat": 2, "Macet Total": 3})
+weekend = st.selectbox("Hari Pemesanan", {"Hari Biasa": 0, "Akhir Pekan": 1})
+density = st.slider("Kepadatan Topping", 0.0, 1.0, 0.5)
+est_dur = st.slider("Estimasi Waktu Sistem (menit)", 5, 60, 25)
+complexity = st.selectbox("Kompleksitas Pizza", {"Mudah": 0, "Sedang": 1, "Rumit": 2})
+order_hour = st.slider("Jam Pemesanan", 0, 23, 18)
 
-if submitted:
-    input_df = pd.DataFrame([{
+# === Prediksi ===
+if st.button("🔍 Prediksi"):
+    input_dict = {
         'Order Month': month,
         'Pizza Size': pizza_size,
-        'Pizza Type': pizza_type_mapping[pizza_type],
+        'Pizza Type': pizza_type,
         'Toppings Count': toppings,
         'Distance (km)': distance,
         'Traffic Level': traffic,
@@ -46,18 +50,20 @@ if submitted:
         'Estimated Duration (min)': est_dur,
         'Pizza Complexity': complexity,
         'Order Hour': order_hour
-    }])
+    }
 
-    # URUTKAN agar sama dengan fitur model
-    expected_features = reg_eta.feature_names_in_
+    input_df = pd.DataFrame([input_dict])
+
+    # Validasi urutan dan nama kolom
     input_df = input_df[expected_features]
 
+    # === Prediksi ===
     pred_eta = reg_eta.predict(input_df)[0]
     pred_delay = reg_delay.predict(input_df)[0]
     is_delayed = clf.predict(input_df)[0]
 
-    st.subheader("Hasil Prediksi 📊")
+    # === Output ===
+    st.subheader("📊 Hasil Prediksi")
     st.write(f"🕒 **Estimasi Pengiriman:** {pred_eta:.2f} menit")
-    st.write(f"⏱️ **Prediksi Keterlambatan:** {pred_delay:.2f} menit")
+    st.write(f"⏱️ **Perkiraan Keterlambatan:** {pred_delay:.2f} menit")
     st.write(f"⚠️ **Kemungkinan Telat:** {'YA' if is_delayed else 'TIDAK'}")
-
