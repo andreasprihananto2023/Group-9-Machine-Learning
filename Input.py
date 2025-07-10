@@ -75,7 +75,7 @@ if submitted:
     }])
 
     # Subset sesuai model
-    input_eta = full_input[features_eta]
+    input_eta = pd.DataFrame(full_input[features_eta].values, columns=reg_eta.feature_names_in_)
     input_delay = full_input[features_delay]
     input_class = full_input[features_class]
 
