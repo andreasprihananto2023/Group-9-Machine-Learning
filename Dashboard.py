@@ -28,16 +28,22 @@ features = [
 X = df[features].copy()
 
 # Pastikan semua numeric
-X = X.apply(pd.to_numeric, errors='coerce')
-X.dropna(inplace=True)
+# Konversi semua kolom ke float dan pastikan hanya angka
+X_clean = X.copy()
+for col in X_clean.columns:
+    X_clean[col] = pd.to_numeric(X_clean[col], errors='coerce')
+
+# Hapus baris yang ada NaN (karena gagal konversi)
+X_clean.dropna(inplace=True)
+
 
 # === 5. Scaling ===
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+X_scaled = scaler.fit_transform(X_clean)
 
 # === 6. Clustering ===
 kmeans = KMeans(n_clusters=3, random_state=42)
-df = df.loc[X.index]  # sinkronkan index setelah dropna
+df = df.loc[X_clean.index]  # sinkronkan index setelah dropna
 df['Cluster'] = kmeans.fit_predict(X_scaled)
 
 # === 7. Visualisasi ===
@@ -48,4 +54,4 @@ plt.xlabel("Cluster")
 plt.ylabel("Delay (min)")
 plt.grid(True)
 plt.tight_layout()
-plt.show()
+plt.pyplot(plt)
